@@ -64,7 +64,7 @@ public class CartController {
 		if(!item.isPresent()) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 		}
-		log.info("Reoving item from cart of user " + user.getUsername());
+		log.info("Removing item from cart of user " + user.getUsername());
 		Cart cart = user.getCart();
 		IntStream.range(0, request.getQuantity())
 			.forEach(i -> cart.removeItem(item.get()));
