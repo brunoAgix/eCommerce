@@ -1,7 +1,5 @@
 package com.example.demo.controllers;
 
-import java.util.Optional;
-
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -47,21 +45,36 @@ public class UserController {
 	
 	@PostMapping("/create")
 	public ResponseEntity<User> createUser(@RequestBody CreateUserRequest createUserRequest) {
-		User user = new User();
-		user.setUsername(createUserRequest.getUsername());
-		log.info("Creating user " + user.getUsername());
+		try {
+			User user = new User();
+			user.setUsername(createUserRequest.getUsername());
+			log.info("CreateUser request received for username: " + createUserRequest.getUsername());
 
-		Cart cart = new Cart();
-		log.info("Creating new Cart for user " + user.getUsername());
-		cartRepository.save(cart);
-		user.setCart(cart);
-		if(createUserRequest.getPassword().length()<7 ||
-				!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())){
-			return ResponseEntity.badRequest().build();
+			Cart cart = new Cart();
+			cartRepository.save(cart);
+			user.setCart(cart);
+
+			// Password validation
+			if (createUserRequest.getPassword().length() < 7) {
+				log.error("CreateUser FAILURE - Password too short for username: " + createUserRequest.getUsername());
+				return ResponseEntity.badRequest().build();
+			}
+
+			if (!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())) {
+				log.error("CreateUser FAILURE - Password mismatch for username: " + createUserRequest.getUsername());
+				return ResponseEntity.badRequest().build();
+			}
+
+			user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
+			userRepository.save(user);
+
+			log.info("CreateUser SUCCESS - User created successfully: " + user.getUsername());
+			return ResponseEntity.ok(user);
+
+		} catch (Exception e) {
+			log.error("CreateUser EXCEPTION - Error creating user: " + createUserRequest.getUsername() + " - Exception: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
-		user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
-		userRepository.save(user);
-		return ResponseEntity.ok(user);
 	}
 	
 }

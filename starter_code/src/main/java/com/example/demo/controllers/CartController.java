@@ -3,8 +3,8 @@ package com.example.demo.controllers;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +25,7 @@ import com.example.demo.model.requests.ModifyCartRequest;
 @RequestMapping("/api/cart")
 public class CartController {
 
-	private static final Logger log = LoggerFactory.getLogger(CartController.class);
+	private static final Logger log = Logger.getLogger(CartController.class);
 	@Autowired
 	private UserRepository userRepository;
 	
@@ -37,40 +37,64 @@ public class CartController {
 	
 	@PostMapping("/addToCart")
 	public ResponseEntity<Cart> addTocart(@RequestBody ModifyCartRequest request) {
-		User user = userRepository.findByUsername(request.getUsername());
-		if(user == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		try {
+			log.info("AddToCart request received for user: " + request.getUsername() + ", itemId: " + request.getItemId() + ", quantity: " + request.getQuantity());
+
+			User user = userRepository.findByUsername(request.getUsername());
+			if (user == null) {
+				log.error("AddToCart FAILURE - User not found: " + request.getUsername());
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+			}
+
+			Optional<Item> item = itemRepository.findById(request.getItemId());
+			if (!item.isPresent()) {
+				log.error("AddToCart FAILURE - Item not found: " + request.getItemId());
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+			}
+
+			Cart cart = user.getCart();
+			IntStream.range(0, request.getQuantity())
+					.forEach(i -> cart.addItem(item.get()));
+			cartRepository.save(cart);
+
+			log.info("AddToCart SUCCESS - Added " + request.getQuantity() + " x " + item.get().getName() + " to cart for user: " + request.getUsername());
+			return ResponseEntity.ok(cart);
+
+		} catch (Exception e) {
+			log.error("AddToCart EXCEPTION - Error adding to cart for user: " + request.getUsername() + " - Exception: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
-		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if(!item.isPresent()) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		log.info("Adding to cart for user " + user.getUsername());
-		Cart cart = user.getCart();
-		IntStream.range(0, request.getQuantity())
-			.forEach(i -> cart.addItem(item.get()));
-		log.info("Adding item " + item.get().getName() + " to cart for user " + user.getUsername());
-		cartRepository.save(cart);
-		return ResponseEntity.ok(cart);
 	}
 	
 	@PostMapping("/removeFromCart")
 	public ResponseEntity<Cart> removeFromcart(@RequestBody ModifyCartRequest request) {
-		User user = userRepository.findByUsername(request.getUsername());
-		if(user == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		try {
+			log.info("RemoveFromCart request received for user: " + request.getUsername() + ", itemId: " + request.getItemId() + ", quantity: " + request.getQuantity());
+
+			User user = userRepository.findByUsername(request.getUsername());
+			if (user == null) {
+				log.error("RemoveFromCart FAILURE - User not found: " + request.getUsername());
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+			}
+
+			Optional<Item> item = itemRepository.findById(request.getItemId());
+			if (!item.isPresent()) {
+				log.error("RemoveFromCart FAILURE - Item not found: " + request.getItemId());
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+			}
+
+			Cart cart = user.getCart();
+			IntStream.range(0, request.getQuantity())
+					.forEach(i -> cart.removeItem(item.get()));
+			cartRepository.save(cart);
+
+			log.info("RemoveFromCart SUCCESS - Removed " + request.getQuantity() + " x " + item.get().getName() + " from cart for user: " + request.getUsername());
+			return ResponseEntity.ok(cart);
+
+		} catch (Exception e) {
+			log.error("RemoveFromCart EXCEPTION - Error removing from cart for user: " + request.getUsername() + " - Exception: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
-		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if(!item.isPresent()) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		log.info("Removing item from cart of user " + user.getUsername());
-		Cart cart = user.getCart();
-		IntStream.range(0, request.getQuantity())
-			.forEach(i -> cart.removeItem(item.get()));
-		log.info("Removing item " + item.get().getName() + " from cart of user " + user.getUsername());
-		cartRepository.save(cart);
-		return ResponseEntity.ok(cart);
 	}
 		
 }
